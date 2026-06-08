@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Pokemon Math Battle</title>
+
+<style>
+body{
+    margin:0;
+    background:black;
+    color:white;
+    font-family:Arial;
+}
+canvas{
+    display:block;
+    margin:auto;
+    background:#0a0a1e;
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="game" width="600" height="500"></canvas>
+
+<script>
+
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+
+// ✅ STATE
+let state="select";
+let playerPokemon="";
+let isBoss=false;
+
+// ✅ IMAGES
+let images={
+    "Pikachu":new Image(),
+    "Charmander":new Image(),
+    "Bulbasaur":new Image(),
+    "Enemy":new Image(),
+    "Boss":new Image()
+};
+
+images["Pikachu"].src="pikachu.jpeg";
+images["Charmander"].src="charmander.jpeg";
+images["Bulbasaur"].src="bulbasaur.jpeg";
+images["Enemy"].src="enemy.jpeg";
+images["Boss"].src="boss.jpeg"; // fallback will show if missing
+
+// ✅ GAME DATA
+let enemyHP=100;
+let playerHP=100;
+
+let num1=0, num2=0, correctAnswer=0;
+let userInput="";
+
+let pokemons=["Pikachu","Charmander","Bulbasaur"];
+
+// ✅ EFFECTS
+let hitEffect=0;
+let enemyShake=0;
+
+let damageText="", damageY=0;
+let playerDamageText="", playerDamageY=300;
+
+// ✅ KEYPAD
+let keypad=[
+ {n:"1",x:200,y:260},{n:"2",x:260,y:260},{n:"3",x:320,y:260},
+ {n:"4",x:200,y:310},{n:"5",x:260,y:310},{n:"6",x:320,y:310},
+ {n:"7",x:200,y:360},{n:"8",x:260,y:360},{n:"9",x:320,y:360},
+ {n:"0",x:260,y:410}
+];
+
+let btnDel={x:380,y:260,w:60,h:40};
+let btnEnterBtn={x:380,y:320,w:60,h:40};
+
+// ✅ QUESTION
+function newQuestion(){
+    num1=Math.floor(Math.random()*10)+1;
+    num2=Math.floor(Math.random()*10)+1;
+    correctAnswer=num1+num2;
+    userInput="";
+}
+
+// ✅ INPUT (PC)
+document.addEventListener("keydown",(e)=>{
+    if(state==="battle"){
+        if(!isNaN(e.key)) userInput+=e.key;
+        if(e.key==="Backspace") userInput=userInput.slice(0,-1);
+        if(e.key==="Enter") checkAnswer();
+    }
+});
+
+// ✅ CLICK (mobile + pc)
+canvas.addEventListener("click",(e)=>{
+    let x=e.offsetX, y=e.offsetY;
+
+    if(state==="select"){
+        pokemons.forEach((p,i)=>{
+            if(x>100+i*150 && x<200+i*150 && y>180 && y<280){
+                playerPokemon=p;
+                state="battle";
+                newQuestion();
+            }
+        });
+    }
+
+    if(state==="battle"){
+
+        keypad.forEach(b=>{
+            if(x>b.x && x<b.x+50 && y>b.y && y<b.y+40){
+                userInput+=b.n;
+            }
+        });
+
+        if(x>btnDel.x && x<btnDel.x+btnDel.w &&
+           y>btnDel.y && y<btnDel.y+btnDel.h){
+            userInput=userInput.slice(0,-1);
+        }
+
+        if(x>btnEnterBtn.x && x<btnEnterBtn.x+btnEnterBtn.w &&
+           y>btnEnterBtn.y && y<btnEnterBtn.y+btnEnterBtn.h){
+            checkAnswer();
+        }
+    }
+});
+
+// ✅ CHECK ANSWER
+function checkAnswer(){
+
+    if(parseInt(userInput)===correctAnswer){
+
+        let dmg = isBoss ? 10 : 20;
+        enemyHP -= dmg;
+
+        hitEffect=10;
+        enemyShake=10;
+
+        damageText="-"+dmg;
+        damageY=120;
+
+    } else {
+
+        let dmg = isBoss ? 25 : 15;
+        playerHP -= dmg;
+
+        playerDamageText="-"+dmg;
+        playerDamageY=300;
+    }
+
+    if(enemyHP<=0){
+        if(!isBoss){
+            isBoss=true;
+            enemyHP=200;
+        }
+    }
+
+    if(playerHP<0) playerHP=0;
+
+    newQuestion();
+}
+
+// ✅ ALWAYS SAFE DRAW
+function drawImageSafe(img,x,y,w,h,label,color){
+
+    // background always drawn (prevents blank)
+    ctx.fillStyle=color;
+    ctx.fillRect(x,y,w,h);
+
+    if(img && img.complete && img.naturalWidth!==0){
+        ctx.drawImage(img,x,y,w,h);
+    }
+
+    ctx.fillStyle="white";
+    ctx.font="14px Arial";
+    ctx.fillText(label,x+10,y+h-10);
+}
+
+// ✅ MAIN LOOP
+function update(){
+
+    ctx.clearRect(0,0,600,500);
+
+    if(hitEffect>0){
+        ctx.fillStyle="rgba(255,255,255,0.3)";
+        ctx.fillRect(0,0,600,500);
+    }
+
+    // ✅ SELECT
+    if(state==="select"){
+
+        ctx.fillStyle="white";
+        ctx.font="24px Arial";
+        ctx.fillText("Choose Your Pokemon",150,80);
+
+        pokemons.forEach((p,i)=>{
+            drawImageSafe(images[p],100+i*150,180,100,100,p,"green");
+        });
+    }
+
+    // ✅ BATTLE
+    if(state==="battle"){
+
+        ctx.fillStyle="white";
+        ctx.font="16px Arial";
+
+        // PLAYER
+        drawImageSafe(images[playerPokemon],50,220,100,100,playerPokemon,"blue");
+
+        // ENEMY / BOSS
+        let shakeX=enemyShake>0?Math.random()*10-5:0;
+        let shakeY=enemyShake>0?Math.random()*10-5:0;
+
+        let key=isBoss?"Boss":"Enemy";
+        drawImageSafe(images[key],450+shakeX,80+shakeY,140,140,key,isBoss?"purple":"red");
+
+        // LABEL
+        ctx.fillText(isBoss?"BOSS":"Enemy",450,60);
+
+        // HP
+        ctx.fillText("Enemy HP: "+enemyHP,400,40);
+        ctx.fillText("Your HP: "+playerHP,50,200);
+
+        // QUESTION
+        ctx.font="26px Arial";
+        ctx.fillText(num1+" + "+num2+" = ?",200,150);
+        ctx.fillText(userInput,280,200);
+
+        // DAMAGE TEXT
+        if(damageText!==""){
+            ctx.fillStyle="red";
+            ctx.fillText(damageText,480,damageY);
+        }
+
+        if(playerDamageText!==""){
+            ctx.fillStyle="orange";
+            ctx.fillText(playerDamageText,80,playerDamageY);
+        }
+
+        // ✅ KEYPAD
+        ctx.fillStyle="white";
+        keypad.forEach(b=>{
+            ctx.strokeRect(b.x,b.y,50,40);
+            ctx.fillText(b.n,b.x+18,b.y+25);
+        });
+
+        ctx.strokeRect(btnDel.x,btnDel.y,btnDel.w,btnDel.h);
+        ctx.fillText("DEL",btnDel.x+8,btnDel.y+25);
+
+        ctx.strokeRect(btnEnterBtn.x,btnEnterBtn.y,btnEnterBtn.w,btnEnterBtn.h);
+        ctx.fillText("OK",btnEnterBtn.x+15,btnEnterBtn.y+25);
+
+        // RESULT
+        if(enemyHP<=0 && isBoss){
+            ctx.fillStyle="lime";
+            ctx.font="28px Arial";
+            ctx.fillText("YOU DEFEATED THE BOSS!",90,320);
+        }
+
+        if(playerHP<=0){
+            ctx.fillStyle="red";
+            ctx.font="30px Arial";
+            ctx.fillText("YOU LOSE!",220,320);
+        }
+
+        // BOSS ALERT
+        if(isBoss){
+            ctx.fillStyle="orange";
+            ctx.fillText("⚠ BOSS BATTLE ⚠",200,20);
+        }
+    }
+
+    // EFFECT DECAY
+    if(hitEffect>0) hitEffect--;
+    if(enemyShake>0) enemyShake--;
+
+    if(damageText!==""){
+        damageY--;
+        if(damageY<80) damageText="";
+    }
+
+    if(playerDamageText!==""){
+        playerDamageY--;
+        if(playerDamageY<240) playerDamageText="";
+    }
+
+    requestAnimationFrame(update);
+}
+
+update();
+
+</script>
+
+</body>
+</html>
